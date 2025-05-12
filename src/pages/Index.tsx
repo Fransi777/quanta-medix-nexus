@@ -1,7 +1,8 @@
 
+import React from 'react';
 import HomePage from './HomePage';
 
-const Index = () => {
+const Index: React.FC = () => {
   return <HomePage />;
 };
 
