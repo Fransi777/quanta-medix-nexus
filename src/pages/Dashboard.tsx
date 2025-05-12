@@ -1,7 +1,5 @@
-
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { 
   Calendar, 
   MessageSquare, 
@@ -16,23 +14,12 @@ import PageTransition from "@/components/shared/PageTransition";
 import useAuth from "@/hooks/useAuth";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-// Mock data
-const recentPatients = [
-  { id: "1", name: "James Wilson", status: "Scheduled", date: "May 15, 2025", condition: "Routine Checkup" },
-  { id: "2", name: "Emma Thompson", status: "In Progress", date: "May 12, 2025", condition: "MRI Scan" },
-  { id: "3", name: "David Garcia", status: "Completed", date: "May 10, 2025", condition: "Post-Surgery Consultation" },
-];
-
-const upcomingAppointments = [
-  { id: "1", name: "Sarah Johnson", time: "09:00 AM", date: "May 16, 2025", type: "General Checkup" },
-  { id: "2", name: "Robert Chen", time: "11:30 AM", date: "May 16, 2025", type: "Specialist Consultation" },
-  { id: "3", name: "Lisa Wong", time: "02:15 PM", date: "May 17, 2025", type: "Follow-up" },
-];
+import useDashboardData from "@/hooks/useDashboardData";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const { recentPatients, upcomingAppointments, isLoading, error } = useDashboardData();
   const [greeting, setGreeting] = useState("Good day");
 
   useEffect(() => {
@@ -115,6 +102,20 @@ export default function Dashboard() {
     show: { y: 0, opacity: 1 },
   };
 
+  // Show appropriate message if data is loading or there was an error
+  if (isLoading) {
+    return (
+      <PageTransition>
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center h-[70vh]">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-t-quantum-vibrant-blue border-b-quantum-bright-purple border-r-quantum-glow-purple border-l-quantum-sky-blue rounded-full animate-spin" />
+            <p className="text-quantum-text-paragraph text-lg">Loading your dashboard...</p>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
+
   return (
     <PageTransition>
       <div className="container mx-auto px-4 py-8">
@@ -124,9 +125,16 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-white">
               {greeting}, <span className="text-quantum-vibrant-blue">{user?.name?.split(' ')[0]}</span>
             </h1>
-            <p className="text-quantum-text-paragraph mt-2">
-              Welcome to your dashboard. Here's what's happening today.
-            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <p className="text-quantum-text-paragraph">
+                Welcome to your dashboard. Here's what's happening today.
+              </p>
+              {!isSupabaseConfigured() && (
+                <span className="px-2 py-1 text-xs rounded-full bg-amber-500/20 text-amber-300">
+                  Using Mock Data
+                </span>
+              )}
+            </div>
           </section>
 
           {/* Stat cards */}
@@ -177,7 +185,7 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {recentPatients.map((patient) => (
+                      {recentPatients.length > 0 ? recentPatients.map((patient) => (
                         <div 
                           key={patient.id}
                           className="flex items-center justify-between p-4 rounded-lg bg-muted/20 border border-white/5 hover:border-quantum-vibrant-blue/20 transition-all duration-300 group cursor-pointer"
@@ -202,7 +210,12 @@ export default function Dashboard() {
                             <span className="text-xs text-quantum-text-secondary mt-1">{patient.date}</span>
                           </div>
                         </div>
-                      ))}
+                      )) : (
+                        <div className="flex flex-col items-center justify-center py-8 text-quantum-text-secondary">
+                          <FileText className="h-12 w-12 mb-3 opacity-40" />
+                          <p>No recent patients to display</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -221,13 +234,13 @@ export default function Dashboard() {
                   <CardTitle className="text-xl text-white">Upcoming Appointments</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {upcomingAppointments.map((appointment) => (
+                  {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
                     <div
                       key={appointment.id}
                       className="flex items-center gap-4 p-4 rounded-lg bg-muted/20 border border-white/5 group hover:border-quantum-vibrant-blue/20 transition-all duration-300"
                     >
                       <div className="w-12 h-12 flex flex-col items-center justify-center bg-quantum-vibrant-blue/10 rounded-lg border border-quantum-vibrant-blue/20 text-quantum-vibrant-blue">
-                        <span className="text-xs font-semibold">{appointment.date.split(', ')[0].slice(0, 3)}</span>
+                        <span className="text-xs font-semibold">{appointment.date.split(' ')[0]}</span>
                         <span className="text-lg font-bold">{appointment.date.split(' ')[1].replace(',', '')}</span>
                       </div>
                       <div className="flex-1">
@@ -245,7 +258,12 @@ export default function Dashboard() {
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-quantum-text-secondary">
+                      <Calendar className="h-12 w-12 mb-3 opacity-40" />
+                      <p>No upcoming appointments</p>
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter>
                   <Button 
