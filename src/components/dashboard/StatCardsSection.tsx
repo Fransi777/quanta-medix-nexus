@@ -1,8 +1,8 @@
-
 import React from "react";
 import { motion } from "framer-motion";
 import StatCard from "./StatCard";
 import { User } from "@/context/AuthContext";
+import { Calendar, MessageSquare, FileText, Users, BarChart, Activity, Plus } from "lucide-react";
 
 interface StatCardType {
   title: string;
@@ -98,7 +98,5 @@ const StatCardsSection: React.FC<StatCardsSectionProps> = ({ user }) => {
     </motion.section>
   );
 };
-
-import { Calendar, MessageSquare, FileText, Users, BarChart, Activity, Plus } from "lucide-react";
 
 export default StatCardsSection;
