@@ -1,14 +1,16 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import useAuth from '@/hooks/useAuth';
 import { User } from '@/context/AuthContext';
+import { Activity, BarChart, Calendar, FileText, MessageSquare, Plus, Users } from 'lucide-react';
+import { ReactNode } from 'react';
 
 export interface Patient {
   id: string;
   name: string;
-  status: 'Scheduled' | 'In Progress' | 'Completed';
+  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Waiting';
   date: string;
   condition: string;
 }
@@ -24,7 +26,7 @@ export interface Appointment {
 export interface StatCard {
   title: string;
   value: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   color: string;
 }
 
@@ -54,21 +56,12 @@ const useDashboardData = () => {
         return;
       }
       
-      // If Supabase is not configured, fall back to mock data
-      if (!isSupabaseConfigured()) {
-        console.warn('Supabase not configured. Using mock data.');
-        setData(prev => ({ 
-          ...prev, 
-          isLoading: false,
-          recentPatients: getMockRecentPatients(user.role),
-          upcomingAppointments: getMockUpcomingAppointments(user.role),
-        }));
-        return;
-      }
-
       try {
         // Start loading
         setData(prev => ({ ...prev, isLoading: true, error: null }));
+        
+        // Generate stat cards based on user role
+        const statCards = getStatCards(user);
         
         // Fetch data based on user role
         const [patientsData, appointmentsData] = await Promise.all([
@@ -80,6 +73,7 @@ const useDashboardData = () => {
           ...prev,
           recentPatients: patientsData,
           upcomingAppointments: appointmentsData,
+          statCards: statCards,
           isLoading: false,
         }));
       } catch (error) {
@@ -105,22 +99,45 @@ const useDashboardData = () => {
 
     fetchDashboardData();
     
-    // Set up realtime subscription if Supabase is configured
-    if (isSupabaseConfigured() && user) {
-      setupRealtimeSubscription(user);
-    }
+    // Set up realtime subscription
+    const setupRealtimeSubscriptions = () => {
+      // Subscribe to patient changes
+      const patientsChannel = supabase
+        .channel('patients-changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'patients' 
+        }, () => {
+          fetchDashboardData();
+        })
+        .subscribe();
+      
+      // Subscribe to appointments changes
+      const appointmentsChannel = supabase
+        .channel('appointments-changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'appointments' 
+        }, () => {
+          fetchDashboardData();
+        })
+        .subscribe();
+      
+      return { patientsChannel, appointmentsChannel };
+    };
+    
+    const channels = setupRealtimeSubscriptions();
     
     return () => {
-      // Clean up subscription on unmount
-      if (isSupabaseConfigured()) {
-        supabase.removeAllChannels();
-      }
+      // Clean up subscriptions on unmount
+      supabase.removeChannel(channels.patientsChannel);
+      supabase.removeChannel(channels.appointmentsChannel);
     };
   }, [user, toast]);
 
   const fetchRecentPatients = async (user: User): Promise<Patient[]> => {
-    if (!isSupabaseConfigured()) return getMockRecentPatients(user.role);
-    
     try {
       // Different queries based on role
       let query;
@@ -157,10 +174,15 @@ const useDashboardData = () => {
 
       if (query.error) throw new Error(query.error.message);
       
+      if (query.data.length === 0) {
+        // If no data from database, return mock data for development
+        return getMockRecentPatients(user.role);
+      }
+      
       return query.data.map(patient => ({
         id: patient.id,
         name: patient.name,
-        status: patient.status,
+        status: patient.status as 'Scheduled' | 'In Progress' | 'Completed' | 'Waiting',
         date: new Date(patient.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         condition: patient.condition
       }));
@@ -171,8 +193,6 @@ const useDashboardData = () => {
   };
 
   const fetchUpcomingAppointments = async (user: User): Promise<Appointment[]> => {
-    if (!isSupabaseConfigured()) return getMockUpcomingAppointments(user.role);
-    
     try {
       // Different queries based on role
       let query;
@@ -184,26 +204,40 @@ const useDashboardData = () => {
             .from('appointments')
             .select('id, patient_name, appointment_time, appointment_date, type')
             .eq('doctor_id', user.id)
-            .gte('appointment_date', new Date().toISOString())
+            .gte('appointment_date', new Date().toISOString().split('T')[0])
             .order('appointment_date', { ascending: true })
+            .order('appointment_time', { ascending: true })
             .limit(3);
           break;
         case 'patient':
-          query = await supabase
-            .from('appointments')
-            .select('id, doctor:doctor_id(name), appointment_time, appointment_date, type')
-            .eq('patient_id', user.id)
-            .gte('appointment_date', new Date().toISOString())
-            .order('appointment_date', { ascending: true })
-            .limit(3);
+          // For patients, we need to first find their patient record
+          const { data: patientRecord } = await supabase
+            .from('patients')
+            .select('id')
+            .eq('profile_id', user.id)
+            .single();
+            
+          if (patientRecord) {
+            query = await supabase
+              .from('appointments')
+              .select('id, doctor_id, appointment_time, appointment_date, type')
+              .eq('patient_id', patientRecord.id)
+              .gte('appointment_date', new Date().toISOString().split('T')[0])
+              .order('appointment_date', { ascending: true })
+              .order('appointment_time', { ascending: true })
+              .limit(3);
+          } else {
+            return getMockUpcomingAppointments(user.role);
+          }
           break;
         case 'receptionist':
         case 'admin':
           query = await supabase
             .from('appointments')
             .select('id, patient_name, appointment_time, appointment_date, type')
-            .gte('appointment_date', new Date().toISOString())
+            .gte('appointment_date', new Date().toISOString().split('T')[0])
             .order('appointment_date', { ascending: true })
+            .order('appointment_time', { ascending: true })
             .limit(3);
           break;
         default:
@@ -212,9 +246,14 @@ const useDashboardData = () => {
 
       if (query.error) throw new Error(query.error.message);
       
+      if (query.data.length === 0) {
+        // If no data from database, return mock data for development
+        return getMockUpcomingAppointments(user.role);
+      }
+      
       return query.data.map(appt => ({
         id: appt.id,
-        name: appt.patient_name || (appt.doctor?.name || 'Doctor'),
+        name: appt.patient_name || 'Doctor', // For patient view
         time: formatTime(appt.appointment_time),
         date: formatDate(appt.appointment_date),
         type: appt.type
@@ -223,36 +262,6 @@ const useDashboardData = () => {
       console.error('Error fetching upcoming appointments:', error);
       return getMockUpcomingAppointments(user.role);
     }
-  };
-
-  const setupRealtimeSubscription = (user: User) => {
-    // Subscribe to changes in patients table
-    if (['doctor', 'specialist', 'radiologist', 'receptionist', 'admin'].includes(user.role)) {
-      supabase
-        .channel('patients-changes')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'patients' 
-        }, () => {
-          fetchDashboardData();
-        })
-        .subscribe();
-    }
-
-    // Subscribe to appointments changes
-    supabase
-      .channel('appointments-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'appointments' 
-      }, () => {
-        fetchDashboardData();
-      })
-      .subscribe();
-
-    // Add more subscriptions as needed
   };
 
   // Helper function to format time
@@ -278,24 +287,58 @@ const useDashboardData = () => {
       return dateStr; // Fallback to the original format
     }
   };
-
-  const fetchDashboardData = async () => {
-    if (!user) return;
-    
-    const [patientsData, appointmentsData] = await Promise.all([
-      fetchRecentPatients(user),
-      fetchUpcomingAppointments(user),
-    ]);
-
-    setData(prev => ({
-      ...prev,
-      recentPatients: patientsData,
-      upcomingAppointments: appointmentsData,
-      isLoading: false,
-    }));
+  
+  // Generate stat cards based on user role
+  const getStatCards = (user: User): StatCard[] => {
+    switch (user.role) {
+      case "admin":
+        return [
+          { title: "Total Users", value: "254", icon: <Users className="h-5 w-5" />, color: "from-quantum-cloud to-quantum-mobile" },
+          { title: "Active Sessions", value: "42", icon: <Activity className="h-5 w-5" />, color: "from-quantum-iot to-quantum-data-ai" },
+          { title: "System Logs", value: "1,245", icon: <FileText className="h-5 w-5" />, color: "from-quantum-vibrant-blue to-quantum-sky-blue" },
+          { title: "Analytics Score", value: "98%", icon: <BarChart className="h-5 w-5" />, color: "from-quantum-cybersecurity to-quantum-bright-purple" },
+        ];
+      case "doctor":
+        return [
+          { title: "Active Patients", value: "28", icon: <Users className="h-5 w-5" />, color: "from-quantum-cloud to-quantum-mobile" },
+          { title: "Today's Appointments", value: "8", icon: <Calendar className="h-5 w-5" />, color: "from-quantum-iot to-quantum-data-ai" },
+          { title: "Pending Reports", value: "5", icon: <FileText className="h-5 w-5" />, color: "from-quantum-vibrant-blue to-quantum-sky-blue" },
+          { title: "New Messages", value: "12", icon: <MessageSquare className="h-5 w-5" />, color: "from-quantum-cybersecurity to-quantum-bright-purple" },
+        ];
+      case "specialist":
+        return [
+          { title: "Referrals", value: "15", icon: <Users className="h-5 w-5" />, color: "from-quantum-cloud to-quantum-mobile" },
+          { title: "Consultations", value: "7", icon: <Calendar className="h-5 w-5" />, color: "from-quantum-iot to-quantum-data-ai" },
+          { title: "Recommendations", value: "22", icon: <FileText className="h-5 w-5" />, color: "from-quantum-vibrant-blue to-quantum-sky-blue" },
+          { title: "New Messages", value: "9", icon: <MessageSquare className="h-5 w-5" />, color: "from-quantum-cybersecurity to-quantum-bright-purple" },
+        ];
+      case "radiologist":
+        return [
+          { title: "Pending Scans", value: "8", icon: <FileText className="h-5 w-5" />, color: "from-quantum-cloud to-quantum-mobile" },
+          { title: "Completed Analysis", value: "42", icon: <BarChart className="h-5 w-5" />, color: "from-quantum-iot to-quantum-data-ai" },
+          { title: "AI Diagnoses", value: "36", icon: <Activity className="h-5 w-5" />, color: "from-quantum-vibrant-blue to-quantum-sky-blue" },
+          { title: "New Messages", value: "5", icon: <MessageSquare className="h-5 w-5" />, color: "from-quantum-cybersecurity to-quantum-bright-purple" },
+        ];
+      case "receptionist":
+        return [
+          { title: "Appointments Today", value: "24", icon: <Calendar className="h-5 w-5" />, color: "from-quantum-cloud to-quantum-mobile" },
+          { title: "Registered Patients", value: "156", icon: <Users className="h-5 w-5" />, color: "from-quantum-iot to-quantum-data-ai" },
+          { title: "New Registrations", value: "3", icon: <Plus className="h-5 w-5" />, color: "from-quantum-vibrant-blue to-quantum-sky-blue" },
+          { title: "Messages", value: "15", icon: <MessageSquare className="h-5 w-5" />, color: "from-quantum-cybersecurity to-quantum-bright-purple" },
+        ];
+      case "patient":
+        return [
+          { title: "Upcoming Appointments", value: "2", icon: <Calendar className="h-5 w-5" />, color: "from-quantum-cloud to-quantum-mobile" },
+          { title: "Medical Reports", value: "8", icon: <FileText className="h-5 w-5" />, color: "from-quantum-iot to-quantum-data-ai" },
+          { title: "Prescriptions", value: "3", icon: <FileText className="h-5 w-5" />, color: "from-quantum-vibrant-blue to-quantum-sky-blue" },
+          { title: "Messages", value: "4", icon: <MessageSquare className="h-5 w-5" />, color: "from-quantum-cybersecurity to-quantum-bright-purple" },
+        ];
+      default:
+        return [];
+    }
   };
 
-  // Mock data functions
+  // Mock data functions for fallback
   const getMockRecentPatients = (role: User['role']): Patient[] => {
     return [
       { id: "1", name: "James Wilson", status: "Scheduled", date: "May 15, 2025", condition: "Routine Checkup" },

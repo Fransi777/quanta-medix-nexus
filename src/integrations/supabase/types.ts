@@ -9,7 +9,212 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          appointment_date: string
+          appointment_time: string
+          created_at: string
+          doctor_id: string | null
+          id: string
+          notes: string | null
+          patient_id: string | null
+          patient_name: string
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_date: string
+          appointment_time: string
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          patient_name: string
+          status: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_date?: string
+          appointment_time?: string
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          patient_name?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mri_scans: {
+        Row: {
+          ai_processed: boolean | null
+          created_at: string
+          id: string
+          image_url: string
+          notes: string | null
+          patient_id: string | null
+          radiologist_id: string | null
+          scan_date: string
+          scan_type: string
+          updated_at: string
+        }
+        Insert: {
+          ai_processed?: boolean | null
+          created_at?: string
+          id?: string
+          image_url: string
+          notes?: string | null
+          patient_id?: string | null
+          radiologist_id?: string | null
+          scan_date: string
+          scan_type: string
+          updated_at?: string
+        }
+        Update: {
+          ai_processed?: boolean | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          notes?: string | null
+          patient_id?: string | null
+          radiologist_id?: string | null
+          scan_date?: string
+          scan_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mri_scans_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mri_scans_radiologist_id_fkey"
+            columns: ["radiologist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          address: string
+          appointment_date: string
+          assigned_doctor_id: string | null
+          condition: string
+          contact_number: string
+          created_at: string
+          date_of_birth: string
+          email: string
+          gender: string
+          id: string
+          medical_history: string | null
+          name: string
+          needs_scan: boolean | null
+          profile_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          appointment_date: string
+          assigned_doctor_id?: string | null
+          condition: string
+          contact_number: string
+          created_at?: string
+          date_of_birth: string
+          email: string
+          gender: string
+          id?: string
+          medical_history?: string | null
+          name: string
+          needs_scan?: boolean | null
+          profile_id?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          appointment_date?: string
+          assigned_doctor_id?: string | null
+          condition?: string
+          contact_number?: string
+          created_at?: string
+          date_of_birth?: string
+          email?: string
+          gender?: string
+          id?: string
+          medical_history?: string | null
+          name?: string
+          needs_scan?: boolean | null
+          profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          id: string
+          name: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
