@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -119,12 +118,15 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Demo account information */}
+          {/* Updated demo account information with all roles */}
           <div className="mt-8 p-4 rounded-lg bg-muted/30 border border-white/5">
             <h3 className="text-sm font-medium text-white mb-2">Demo Accounts</h3>
             <div className="space-y-2 text-xs text-quantum-text-paragraph">
               <p><span className="text-quantum-sky-blue">Admin:</span> admin@quantum.med / admin123</p>
               <p><span className="text-quantum-sky-blue">Doctor:</span> doctor@quantum.med / doctor123</p>
+              <p><span className="text-quantum-sky-blue">Specialist:</span> specialist@quantum.med / specialist123</p>
+              <p><span className="text-quantum-sky-blue">Radiologist:</span> radiologist@quantum.med / radiologist123</p>
+              <p><span className="text-quantum-sky-blue">Receptionist:</span> receptionist@quantum.med / receptionist123</p>
               <p><span className="text-quantum-sky-blue">Patient:</span> patient@quantum.med / patient123</p>
             </div>
           </div>

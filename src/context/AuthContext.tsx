@@ -1,4 +1,3 @@
-
 import { createContext, useState, useEffect, ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -142,7 +141,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Try demo login in development
       if (import.meta.env.DEV) {
         try {
-          // Demo user accounts
+          // Demo user accounts - Updated with all roles
           const demoUsers = [
             { id: "1", email: "admin@quantum.med", password: "admin123", role: "admin", name: "Admin User", avatar: "" },
             { id: "2", email: "doctor@quantum.med", password: "doctor123", role: "doctor", name: "Dr. Sarah Johnson", avatar: "" },
