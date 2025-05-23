@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Brain, FileDown, Plus, AlarmCheck } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import UploadScanDialog from "@/components/radiologist/UploadScanDialog";
 
 type MriScanWithPatient = MriScan & {
   patients: {
@@ -52,6 +53,7 @@ export default function MriScansPage() {
   const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
   const [viewMode, setViewMode] = useState<"image" | "analysis">("image");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
 
   // Fetch MRI scans
   const { data: scans, isLoading, refetch } = useQuery({
@@ -71,18 +73,15 @@ export default function MriScansPage() {
   const analyzeMutation = useMutation({
     mutationFn: async (scanId: string) => {
       setIsAnalyzing(true);
-      const response = await fetch("/api/analyze-mri-scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanId }),
+      const response = await supabase.functions.invoke('analyze-mri-scan', {
+        body: { scanId }
       });
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to analyze scan");
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to analyze scan");
       }
       
-      return response.json();
+      return response.data;
     },
     onSuccess: (data) => {
       setAnalysisResult(data.analysis);
@@ -109,41 +108,15 @@ export default function MriScansPage() {
   const handleAnalyzeScan = (scan: MriScanWithPatient) => {
     setSelectedScan(scan);
     if (scan.ai_processed) {
-      // If already processed, fetch existing analysis
-      fetchAnalysisResult(scan.id);
+      // If already processed, show message that analysis exists
+      toast({
+        title: "Analysis Available",
+        description: "This scan has already been analyzed. View the analysis in the Analysis tab.",
+      });
+      setViewMode("analysis");
     } else {
       // If not processed, perform new analysis
       analyzeMutation.mutate(scan.id);
-    }
-  };
-
-  // Fetch existing analysis result
-  const fetchAnalysisResult = async (scanId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("ai_results")
-        .select("*")
-        .eq("mri_scan_id", scanId)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setAnalysisResult({
-          assessment: "Previous Assessment", // This field might not be in the database
-          abnormalities: data.areas_of_concern,
-          diagnosis: data.diagnosis,
-          recommendations: data.recommendations,
-          confidence_score: data.confidence_score,
-        });
-        setViewMode("analysis");
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Failed to load analysis",
-        description: "Unable to retrieve the analysis for this scan",
-      });
     }
   };
 
@@ -158,6 +131,16 @@ export default function MriScansPage() {
     if (score >= 0.7) return { label: "High", color: "bg-green-500" };
     if (score >= 0.4) return { label: "Medium", color: "bg-yellow-500" };
     return { label: "Low", color: "bg-red-500" };
+  };
+
+  // Handle successful upload
+  const handleUploadSuccess = () => {
+    refetch();
+    setShowUploadDialog(false);
+    toast({
+      title: "Upload Successful",
+      description: "MRI scan has been uploaded successfully",
+    });
   };
 
   if (isLoading) {
@@ -178,7 +161,10 @@ export default function MriScansPage() {
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">MRI Scans Management</h1>
-          <Button className="flex items-center gap-2">
+          <Button 
+            className="flex items-center gap-2"
+            onClick={() => setShowUploadDialog(true)}
+          >
             <Plus className="h-4 w-4" />
             Upload New Scan
           </Button>
@@ -383,6 +369,13 @@ export default function MriScansPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Upload Dialog */}
+        <UploadScanDialog 
+          open={showUploadDialog}
+          onOpenChange={setShowUploadDialog}
+          onSuccess={handleUploadSuccess}
+        />
       </div>
     </PageTransition>
   );
