@@ -97,7 +97,7 @@ export default function MriScansPage() {
       toast({
         variant: "destructive",
         title: "Analysis Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Unknown error",
       });
     },
     onSettled: () => {
@@ -128,14 +128,16 @@ export default function MriScansPage() {
 
       if (error) throw error;
 
-      setAnalysisResult({
-        assessment: "Previous Assessment", // This field might not be in the database
-        abnormalities: data.areas_of_concern,
-        diagnosis: data.diagnosis,
-        recommendations: data.recommendations,
-        confidence_score: data.confidence_score,
-      });
-      setViewMode("analysis");
+      if (data) {
+        setAnalysisResult({
+          assessment: "Previous Assessment", // This field might not be in the database
+          abnormalities: data.areas_of_concern,
+          diagnosis: data.diagnosis,
+          recommendations: data.recommendations,
+          confidence_score: data.confidence_score,
+        });
+        setViewMode("analysis");
+      }
     } catch (error) {
       toast({
         variant: "destructive",
@@ -347,7 +349,7 @@ export default function MriScansPage() {
                 ) : (
                   <div className="flex-grow flex flex-col items-center justify-center">
                     <p className="text-muted-foreground">No analysis available</p>
-                    {!selectedScan?.ai_processed && (
+                    {selectedScan && !selectedScan.ai_processed && (
                       <Button
                         className="mt-4"
                         onClick={() => selectedScan && handleAnalyzeScan(selectedScan)}

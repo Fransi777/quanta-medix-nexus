@@ -44,7 +44,7 @@ serve(async (req: Request) => {
     // Fetch MRI scan data
     const { data: scanData, error: scanError } = await supabase
       .from("mri_scans")
-      .select("*, patients(*)") 
+      .select("*, patients(*)")
       .eq("id", scanId)
       .single();
 
