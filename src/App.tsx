@@ -19,6 +19,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
+import MriScansPage from "@/pages/radiologist/MriScans";
 
 const queryClient = new QueryClient();
 
@@ -95,7 +96,7 @@ const App = () => (
                 element={
                   <AuthGuard allowedRoles={["radiologist"]}>
                     <Routes>
-                      <Route path="/scans" element={<div className="container mx-auto p-8 text-white">Radiologist Scans Page - Coming Soon</div>} />
+                      <Route path="/scans" element={<MriScansPage />} />
                       <Route path="/analysis" element={<div className="container mx-auto p-8 text-white">Radiologist Analysis Page - Coming Soon</div>} />
                       <Route path="*" element={<Navigate to="/dashboard" replace />} />
                     </Routes>
