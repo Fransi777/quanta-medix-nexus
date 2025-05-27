@@ -48,6 +48,22 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
         throw new Error("Please fill in all required fields and select a file");
       }
 
+      console.log("Starting upload with user:", user);
+
+      // Get the current user's profile to ensure we have the correct UUID
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", user?.email)
+        .single();
+
+      if (profileError || !profile) {
+        console.error("Profile error:", profileError);
+        throw new Error("Unable to find user profile. Please ensure you are logged in.");
+      }
+
+      console.log("Found profile:", profile);
+
       // Create a unique filename
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -56,11 +72,13 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
       // In a real implementation, you would upload to storage
       const imageUrl = `https://via.placeholder.com/800x600?text=MRI+Scan+${fileName}`;
 
-      // Insert scan record without patient_id
+      console.log("Inserting scan with radiologist_id:", profile.id);
+
+      // Insert scan record with proper UUID
       const { data, error } = await supabase
         .from("mri_scans")
         .insert({
-          radiologist_id: user?.id,
+          radiologist_id: profile.id, // Use the profile UUID instead of user.id
           scan_type: formData.scan_type,
           scan_date: formData.scan_date,
           notes: formData.notes,
@@ -70,7 +88,12 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Insert error:", error);
+        throw error;
+      }
+
+      console.log("Successfully inserted scan:", data);
       return data;
     },
     onSuccess: () => {
@@ -82,6 +105,7 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
       });
     },
     onError: (error) => {
+      console.error("Upload mutation error:", error);
       toast({
         variant: "destructive",
         title: "Upload Failed",
