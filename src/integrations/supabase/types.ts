@@ -120,6 +120,45 @@ export type Database = {
           },
         ]
       }
+      patient_registrations: {
+        Row: {
+          id: string
+          notes: string | null
+          patient_id: string | null
+          registered_by: string | null
+          registration_date: string | null
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          registered_by?: string | null
+          registration_date?: string | null
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          registered_by?: string | null
+          registration_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_registrations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_registrations_registered_by_fkey"
+            columns: ["registered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           address: string
@@ -176,6 +215,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "patients_assigned_doctor_id_fkey"
+            columns: ["assigned_doctor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "patients_profile_id_fkey"
             columns: ["profile_id"]
