@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
   Dialog,
@@ -36,30 +36,15 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
-    patient_id: "",
     scan_type: "",
     scan_date: "",
     notes: "",
   });
 
-  // Fetch patients for dropdown
-  const { data: patients } = useQuery({
-    queryKey: ["patients"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("patients")
-        .select("id, name, condition")
-        .order("name");
-
-      if (error) throw error;
-      return data;
-    },
-  });
-
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedFile || !formData.patient_id || !formData.scan_type || !formData.scan_date) {
+      if (!selectedFile || !formData.scan_type || !formData.scan_date) {
         throw new Error("Please fill in all required fields and select a file");
       }
 
@@ -71,11 +56,10 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
       // In a real implementation, you would upload to storage
       const imageUrl = `https://via.placeholder.com/800x600?text=MRI+Scan+${fileName}`;
 
-      // Insert scan record
+      // Insert scan record without patient_id
       const { data, error } = await supabase
         .from("mri_scans")
         .insert({
-          patient_id: formData.patient_id,
           radiologist_id: user?.id,
           scan_type: formData.scan_type,
           scan_date: formData.scan_date,
@@ -109,7 +93,6 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
   const resetForm = () => {
     setSelectedFile(null);
     setFormData({
-      patient_id: "",
       scan_type: "",
       scan_date: "",
       notes: "",
@@ -144,30 +127,11 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
         <DialogHeader>
           <DialogTitle>Upload New MRI Scan</DialogTitle>
           <DialogDescription>
-            Upload a new MRI scan and associate it with a patient.
+            Upload a new MRI scan to the system.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="patient">Patient *</Label>
-            <Select
-              value={formData.patient_id}
-              onValueChange={(value) => setFormData({ ...formData, patient_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a patient" />
-              </SelectTrigger>
-              <SelectContent>
-                {patients?.map((patient) => (
-                  <SelectItem key={patient.id} value={patient.id}>
-                    {patient.name} - {patient.condition}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="scan_type">Scan Type *</Label>
             <Select
