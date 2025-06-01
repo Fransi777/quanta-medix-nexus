@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -43,7 +42,16 @@ type AIAnalysisResult = {
   abnormalities: string;
   diagnosis: string;
   recommendations: string;
+  followUp?: string;
   confidence_score: number;
+  tumorDetails?: {
+    tumorType: string | null;
+    size: string | null;
+    location: string | null;
+    grade: string | null;
+    malignancy: string | null;
+  };
+  fullAnalysis?: string;
 };
 
 // Demo data for radiologist account
@@ -101,14 +109,22 @@ const demoScans: MriScanWithPatient[] = [
   }
 ];
 
-// Demo AI analysis results
+// Enhanced demo analysis results with brain tumor details
 const demoAnalysisResults: Record<string, AIAnalysisResult> = {
   "demo-scan-1": {
-    assessment: "High quality brain MRI scan with excellent contrast and resolution. All major anatomical structures are clearly visualized.",
-    abnormalities: "No significant abnormalities detected. Normal brain parenchyma, ventricular system, and vascular structures.",
-    diagnosis: "Normal brain MRI study",
-    recommendations: "No immediate follow-up required. Consider routine screening in 1-2 years if symptoms persist.",
-    confidence_score: 0.92
+    assessment: "High quality brain MRI scan with excellent contrast resolution. Tumor segmentation analysis reveals a well-defined mass in the right frontal lobe.",
+    abnormalities: "Glioblastoma multiforme (GBM) identified in the right frontal cortex with characteristic ring enhancement and central necrosis.",
+    diagnosis: "Glioblastoma Multiforme (WHO Grade IV)",
+    recommendations: "Immediate neurosurgical consultation for maximal safe resection, followed by concurrent chemoradiotherapy with temozolomide. Consider tumor molecular profiling for personalized treatment.",
+    followUp: "Post-operative MRI within 48 hours, then every 2-3 months with gadolinium enhancement.",
+    confidence_score: 0.89,
+    tumorDetails: {
+      tumorType: "Glioblastoma Multiforme (GBM)",
+      size: "3.2 x 2.8 x 2.1 cm",
+      location: "Right frontal lobe, precentral gyrus",
+      grade: "WHO Grade IV",
+      malignancy: "Malignant"
+    }
   },
   "demo-scan-3": {
     assessment: "Detailed knee MRI showing clear visualization of cartilage, ligaments, and bone structures.",
@@ -152,17 +168,38 @@ export default function MriScansPage() {
     enabled: !!user
   });
 
-  // AI analysis mutation
+  // AI analysis mutation with enhanced tumor analysis
   const analyzeMutation = useMutation({
     mutationFn: async (scanId: string) => {
       setIsAnalyzing(true);
       
-      // For demo users, simulate analysis
+      // For demo users, simulate enhanced brain tumor analysis
       if (isDemoUser) {
         // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 4000));
         
-        // Return mock analysis
+        // Return enhanced mock analysis for brain scans
+        if (selectedScan?.scan_type === "Brain MRI") {
+          return {
+            analysis: {
+              assessment: "AI-powered brain tumor segmentation completed. High-resolution analysis with advanced deep learning algorithms identified distinct tumor boundaries.",
+              abnormalities: "Primary brain tumor detected: Glioblastoma Multiforme with characteristic features including central necrosis, rim enhancement, and significant perilesional edema.",
+              diagnosis: "Glioblastoma Multiforme (WHO Grade IV) - High-grade malignant astrocytoma",
+              recommendations: "URGENT: Immediate neurosurgical evaluation required. Recommend: 1) Maximal safe surgical resection, 2) Concurrent chemoradiotherapy with temozolomide, 3) Molecular testing (IDH, MGMT), 4) Clinical trial consideration.",
+              followUp: "Post-operative MRI within 24-48 hours, then every 6-8 weeks during treatment. Long-term surveillance every 2-3 months.",
+              confidence_score: 0.91,
+              tumorDetails: {
+                tumorType: "Glioblastoma Multiforme (GBM)",
+                size: "4.1 x 3.6 x 2.9 cm (Volume: ~22.3 cm³)",
+                location: "Right frontal-parietal region with extension to corpus callosum",
+                grade: "WHO Grade IV",
+                malignancy: "High-grade malignant"
+              }
+            }
+          };
+        }
+        
+        // Return standard analysis for non-brain scans
         return {
           analysis: {
             assessment: "AI analysis completed successfully. High quality scan with good contrast resolution.",
@@ -200,7 +237,9 @@ export default function MriScansPage() {
       refetch();
       toast({
         title: "Analysis Complete",
-        description: "The MRI scan has been successfully analyzed",
+        description: selectedScan?.scan_type === "Brain MRI" 
+          ? "Brain tumor analysis with segmentation completed"
+          : "The MRI scan has been successfully analyzed",
       });
     },
     onError: (error) => {
@@ -427,23 +466,86 @@ export default function MriScansPage() {
                   <div className="flex-grow flex flex-col items-center justify-center">
                     <div className="flex flex-col items-center gap-4">
                       <Brain className="h-12 w-12 animate-pulse text-primary" />
-                      <p className="text-lg font-medium">Analyzing MRI Scan...</p>
+                      <p className="text-lg font-medium">
+                        {selectedScan?.scan_type === "Brain MRI" 
+                          ? "Analyzing Brain Tumor Segmentation..." 
+                          : "Analyzing MRI Scan..."
+                        }
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        {isDemoUser ? "Simulating AI analysis..." : "Please wait while AI processes the image"}
+                        {isDemoUser 
+                          ? "Simulating AI tumor analysis with deep learning..." 
+                          : "Please wait while AI processes the image"
+                        }
                       </p>
                     </div>
                   </div>
                 ) : analysisResult ? (
                   <div className="space-y-6 overflow-y-auto h-full p-4">
+                    {/* Tumor Details Section - Show first for brain scans */}
+                    {analysisResult.tumorDetails && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                        <h3 className="text-lg font-semibold text-red-800 flex items-center gap-2">
+                          <Brain className="h-5 w-5" />
+                          Brain Tumor Detected
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {analysisResult.tumorDetails.tumorType && (
+                            <div>
+                              <span className="font-medium text-gray-700">Tumor Type:</span>
+                              <p className="text-red-700 font-medium">{analysisResult.tumorDetails.tumorType}</p>
+                            </div>
+                          )}
+                          
+                          {analysisResult.tumorDetails.size && (
+                            <div>
+                              <span className="font-medium text-gray-700">Size:</span>
+                              <p className="text-gray-900">{analysisResult.tumorDetails.size}</p>
+                            </div>
+                          )}
+                          
+                          {analysisResult.tumorDetails.location && (
+                            <div>
+                              <span className="font-medium text-gray-700">Location:</span>
+                              <p className="text-gray-900">{analysisResult.tumorDetails.location}</p>
+                            </div>
+                          )}
+                          
+                          {analysisResult.tumorDetails.grade && (
+                            <div>
+                              <span className="font-medium text-gray-700">WHO Grade:</span>
+                              <p className="text-red-700 font-medium">{analysisResult.tumorDetails.grade}</p>
+                            </div>
+                          )}
+                          
+                          {analysisResult.tumorDetails.malignancy && (
+                            <div>
+                              <span className="font-medium text-gray-700">Malignancy:</span>
+                              <p className={`font-medium ${
+                                analysisResult.tumorDetails.malignancy.toLowerCase().includes('malignant') 
+                                  ? 'text-red-700' 
+                                  : 'text-yellow-700'
+                              }`}>
+                                {analysisResult.tumorDetails.malignancy}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {analysisResult.assessment && (
                       <div className="space-y-2">
-                        <h3 className="text-lg font-semibold">Assessment</h3>
+                        <h3 className="text-lg font-semibold">Tumor Segmentation & Assessment</h3>
                         <p className="text-gray-700">{analysisResult.assessment}</p>
                       </div>
                     )}
 
                     <div className="space-y-2">
-                      <h3 className="text-lg font-semibold">Abnormalities</h3>
+                      <h3 className="text-lg font-semibold">
+                        {analysisResult.tumorDetails ? 'Tumor Classification' : 'Abnormalities'}
+                      </h3>
                       <p className="text-gray-700">
                         {analysisResult.abnormalities || "None identified"}
                       </p>
@@ -462,11 +564,18 @@ export default function MriScansPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <h3 className="text-lg font-semibold">Recommendations</h3>
+                      <h3 className="text-lg font-semibold">Treatment Recommendations</h3>
                       <p className="text-gray-700">
                         {analysisResult.recommendations || "No specific recommendations"}
                       </p>
                     </div>
+
+                    {analysisResult.followUp && (
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold">Follow-up Protocol</h3>
+                        <p className="text-gray-700">{analysisResult.followUp}</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex-grow flex flex-col items-center justify-center">

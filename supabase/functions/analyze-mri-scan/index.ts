@@ -63,7 +63,7 @@ serve(async (req: Request) => {
 
     console.log("Scan data retrieved successfully");
 
-    // Call Gemini API with image URL
+    // Call Gemini API with enhanced prompt for brain tumor analysis
     const imageUrl = scanData.image_url;
     console.log("Analyzing image URL:", imageUrl);
 
@@ -83,7 +83,7 @@ serve(async (req: Request) => {
       imageBase64 = imageUrl.split(",")[1];
     }
 
-    console.log("Calling Gemini API...");
+    console.log("Calling Gemini API for brain tumor analysis...");
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -97,7 +97,40 @@ serve(async (req: Request) => {
             {
               parts: [
                 {
-                  text: "You are an expert radiologist analyzing MRI scan images. Please provide a detailed medical assessment of this MRI scan. Include the following sections in your analysis:\n\n1. **Assessment**: Overall technical quality and visibility of anatomical structures\n2. **Abnormalities**: Any visible abnormalities, lesions, or areas of concern\n3. **Possible Diagnosis**: Your professional opinion on potential diagnoses based on the findings\n4. **Recommendations**: Suggested follow-up actions, additional tests, or treatment considerations\n\nPlease be thorough but concise, and use appropriate medical terminology."
+                  text: `You are an expert neuroradiologist specializing in brain tumor analysis and segmentation. Analyze this ${scanData.scan_type} scan for brain tumors and provide a comprehensive assessment.
+
+**IMPORTANT**: Please provide a detailed analysis in the following format:
+
+1. **Tumor Detection and Segmentation**: 
+   - Identify if any tumors are present
+   - Describe the exact location and boundaries of any detected tumors
+   - Provide segmentation details (which brain regions are affected)
+
+2. **Tumor Classification**:
+   - Primary tumor type (e.g., Glioblastoma, Meningioma, Astrocytoma, Metastatic lesion)
+   - WHO grade if applicable
+   - Malignancy level (benign/malignant)
+
+3. **Tumor Characteristics**:
+   - Estimated size in centimeters (length x width x height)
+   - Volume estimation if possible
+   - Enhancement patterns
+   - Surrounding edema extent
+   - Mass effect on surrounding structures
+
+4. **Treatment Recommendations**:
+   - Surgical options (resection feasibility)
+   - Radiation therapy considerations
+   - Chemotherapy protocols
+   - Multidisciplinary team consultation needs
+   - Urgency level (immediate/routine)
+
+5. **Follow-up Protocol**:
+   - Recommended imaging intervals
+   - Additional studies needed
+   - Monitoring parameters
+
+Please be specific with measurements and provide detailed medical terminology. If no tumor is detected, clearly state this and explain the normal findings.`
                 },
                 {
                   inline_data: {
@@ -109,8 +142,8 @@ serve(async (req: Request) => {
             }
           ],
           generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 1024,
+            temperature: 0.1,
+            maxOutputTokens: 2048,
           }
         }),
       }
@@ -131,28 +164,30 @@ serve(async (req: Request) => {
     const analysisText = aiResult.candidates[0].content.parts[0].text;
     console.log("Analysis completed, parsing results...");
     
-    // Parse analysis sections
+    // Enhanced parsing for brain tumor analysis
     const sections = {
-      assessment: extractSection(analysisText, "Assessment"),
-      abnormalities: extractSection(analysisText, "Abnormalities"),
-      diagnosis: extractSection(analysisText, "Possible Diagnosis"),
-      recommendations: extractSection(analysisText, "Recommendations"),
+      assessment: extractSection(analysisText, ["Tumor Detection and Segmentation", "Assessment"]),
+      abnormalities: extractSection(analysisText, ["Tumor Classification", "Abnormalities"]),
+      diagnosis: extractSection(analysisText, ["Tumor Characteristics", "Possible Diagnosis", "Diagnosis"]),
+      recommendations: extractSection(analysisText, ["Treatment Recommendations", "Recommendations"]),
+      followUp: extractSection(analysisText, ["Follow-up Protocol", "Follow-up"]),
+      tumorDetails: extractTumorDetails(analysisText)
     };
     
-    // Calculate confidence score based on language used
-    const confidenceScore = calculateConfidenceScore(analysisText);
+    // Enhanced confidence score calculation for brain tumor analysis
+    const confidenceScore = calculateTumorConfidenceScore(analysisText);
     
-    console.log("Saving AI result to database...");
+    console.log("Saving enhanced AI result to database...");
 
-    // Save AI result to database
+    // Save enhanced AI result to database
     const { data: resultData, error: resultError } = await supabase
       .from("ai_results")
       .insert({
         mri_scan_id: scanId,
         patient_id: scanData.patient_id,
-        diagnosis: sections.diagnosis || "No conclusive diagnosis available",
+        diagnosis: sections.tumorDetails.tumorType || sections.diagnosis || "No tumor detected",
         confidence_score: confidenceScore,
-        areas_of_concern: sections.abnormalities || "No specific areas of concern identified",
+        areas_of_concern: sections.tumorDetails.location || sections.abnormalities || "No specific areas of concern identified",
         recommendations: sections.recommendations || "No specific recommendations provided",
       })
       .select()
@@ -172,13 +207,17 @@ serve(async (req: Request) => {
       .update({ ai_processed: true })
       .eq("id", scanId);
 
-    console.log("Analysis complete and saved successfully");
+    console.log("Enhanced brain tumor analysis complete and saved successfully");
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         result: resultData,
-        analysis: sections
+        analysis: {
+          ...sections,
+          tumorDetails: sections.tumorDetails,
+          fullAnalysis: analysisText
+        }
       }),
       { headers: corsHeaders }
     );
@@ -191,35 +230,86 @@ serve(async (req: Request) => {
   }
 });
 
-// Helper function to extract sections from AI analysis text
-function extractSection(text: string, sectionName: string): string | null {
-  const patterns = [
-    new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([\\s\\S]*?)(?=\\n\\*\\*|$)`, "i"),
-    new RegExp(`${sectionName}:?\\s*([\\s\\S]*?)(?=\\n\\n|\\n[A-Z]|$)`, "i"),
-    new RegExp(`\\d+\\.\\s*\\*\\*${sectionName}\\*\\*:?\\s*([\\s\\S]*?)(?=\\n\\d+\\.|$)`, "i")
-  ];
-  
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      return match[1].trim();
+// Enhanced helper function to extract sections from AI analysis text
+function extractSection(text: string, sectionNames: string[]): string | null {
+  for (const sectionName of sectionNames) {
+    const patterns = [
+      new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([\\s\\S]*?)(?=\\n\\*\\*|\\n\\d+\\.|$)`, "i"),
+      new RegExp(`${sectionName}:?\\s*([\\s\\S]*?)(?=\\n\\n|\\n[A-Z]|$)`, "i"),
+      new RegExp(`\\d+\\.\\s*\\*\\*${sectionName}\\*\\*:?\\s*([\\s\\S]*?)(?=\\n\\d+\\.|$)`, "i")
+    ];
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return match[1].trim();
+      }
     }
   }
   
   return null;
 }
 
-// Helper function to calculate confidence score based on language
-function calculateConfidenceScore(text: string): number {
-  const highConfidenceWords = ["clearly", "definitely", "certainly", "evident", "obvious", "conclusive"];
-  const mediumConfidenceWords = ["likely", "probably", "suggests", "indicates", "appears", "consistent"];
-  const lowConfidenceWords = ["possibly", "might", "may", "uncertain", "unclear", "questionable"];
+// New function to extract specific tumor details
+function extractTumorDetails(text: string): any {
+  const details = {
+    tumorType: null,
+    size: null,
+    location: null,
+    grade: null,
+    malignancy: null
+  };
+
+  // Extract tumor type
+  const tumorTypeMatch = text.match(/(?:tumor type|primary tumor|diagnosis):?\s*([^.\n]+)/i);
+  if (tumorTypeMatch) {
+    details.tumorType = tumorTypeMatch[1].trim();
+  }
+
+  // Extract size information
+  const sizeMatch = text.match(/(?:size|dimensions|diameter):?\s*([^.\n]*(?:cm|mm|centimeter|millimeter)[^.\n]*)/i);
+  if (sizeMatch) {
+    details.size = sizeMatch[1].trim();
+  }
+
+  // Extract location
+  const locationMatch = text.match(/(?:location|region|area|situated):?\s*([^.\n]+)/i);
+  if (locationMatch) {
+    details.location = locationMatch[1].trim();
+  }
+
+  // Extract WHO grade
+  const gradeMatch = text.match(/(?:WHO grade|grade):?\s*([I-IV]+|\d+)/i);
+  if (gradeMatch) {
+    details.grade = gradeMatch[1].trim();
+  }
+
+  // Extract malignancy
+  const malignancyMatch = text.match(/(benign|malignant|low.grade|high.grade)/i);
+  if (malignancyMatch) {
+    details.malignancy = malignancyMatch[1].trim();
+  }
+
+  return details;
+}
+
+// Enhanced confidence score calculation for brain tumor analysis
+function calculateTumorConfidenceScore(text: string): number {
+  const highConfidenceWords = ["clearly visible", "well-defined", "characteristic", "typical", "definitive", "pathognomonic"];
+  const mediumConfidenceWords = ["likely", "probably", "suggests", "consistent with", "appears", "suspicious"];
+  const lowConfidenceWords = ["possibly", "might", "questionable", "unclear", "indeterminate", "needs correlation"];
+  const tumorIndicators = ["tumor", "mass", "lesion", "neoplasm", "enhancement"];
   
   let score = 0.5; // Default medium confidence
   
+  // Check for tumor indicators
+  const tumorCount = tumorIndicators.filter(word => text.toLowerCase().includes(word)).length;
+  if (tumorCount >= 3) score += 0.2;
+  else if (tumorCount >= 1) score += 0.1;
+  
   // Check for high confidence words
   if (highConfidenceWords.some(word => text.toLowerCase().includes(word))) {
-    score += 0.3;
+    score += 0.25;
   }
   
   // Check for medium confidence words
@@ -230,6 +320,11 @@ function calculateConfidenceScore(text: string): number {
   // Check for low confidence words
   if (lowConfidenceWords.some(word => text.toLowerCase().includes(word))) {
     score -= 0.2;
+  }
+  
+  // Bonus for specific measurements
+  if (text.match(/\d+\.?\d*\s*(cm|mm)/i)) {
+    score += 0.15;
   }
   
   // Ensure score is between 0 and 1
