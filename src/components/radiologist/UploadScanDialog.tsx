@@ -41,6 +41,9 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
     notes: "",
   });
 
+  // Check if user is demo radiologist
+  const isDemoUser = user?.id === "demo-radiologist-4";
+
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async () => {
@@ -50,7 +53,30 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
 
       console.log("Starting upload with user:", user);
 
-      // Get the current user's profile to ensure we have the correct UUID
+      // Handle demo user uploads
+      if (isDemoUser) {
+        // Simulate upload delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Create mock scan data
+        const mockScan = {
+          id: `demo-scan-${Date.now()}`,
+          radiologist_id: user.id,
+          patient_id: "demo-patient-new",
+          scan_type: formData.scan_type,
+          scan_date: formData.scan_date,
+          notes: formData.notes,
+          image_url: `https://via.placeholder.com/800x600/1e293b/64748b?text=${encodeURIComponent(formData.scan_type)}+Demo+Scan`,
+          ai_processed: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        console.log("Demo upload successful:", mockScan);
+        return mockScan;
+      }
+
+      // Real Supabase upload for non-demo users
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
@@ -101,7 +127,9 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
       resetForm();
       toast({
         title: "Upload Successful",
-        description: "MRI scan has been uploaded successfully",
+        description: isDemoUser 
+          ? "Demo MRI scan has been uploaded successfully" 
+          : "MRI scan has been uploaded successfully",
       });
     },
     onError: (error) => {
@@ -152,6 +180,7 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
           <DialogTitle>Upload New MRI Scan</DialogTitle>
           <DialogDescription>
             Upload a new MRI scan to the system.
+            {isDemoUser && " (Demo Mode - Upload will be simulated)"}
           </DialogDescription>
         </DialogHeader>
 
@@ -202,6 +231,11 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
                 Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
               </p>
             )}
+            {isDemoUser && (
+              <p className="text-xs text-blue-600">
+                Note: In demo mode, file content is not actually processed
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -237,7 +271,10 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
             ) : (
               <Upload className="h-4 w-4" />
             )}
-            {uploadMutation.isPending ? "Uploading..." : "Upload Scan"}
+            {uploadMutation.isPending ? 
+              (isDemoUser ? "Simulating Upload..." : "Uploading...") : 
+              "Upload Scan"
+            }
           </Button>
         </DialogFooter>
       </DialogContent>

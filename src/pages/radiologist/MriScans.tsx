@@ -46,6 +46,79 @@ type AIAnalysisResult = {
   confidence_score: number;
 };
 
+// Demo data for radiologist account
+const demoScans: MriScanWithPatient[] = [
+  {
+    id: "demo-scan-1",
+    radiologist_id: "demo-radiologist-4",
+    patient_id: "demo-patient-1",
+    scan_type: "Brain MRI",
+    scan_date: "2024-05-15",
+    image_url: "https://via.placeholder.com/800x600/1e293b/64748b?text=Brain+MRI+Scan",
+    ai_processed: true,
+    notes: "Routine brain scan for headache investigation",
+    created_at: "2024-05-15T10:00:00Z",
+    updated_at: "2024-05-15T10:00:00Z",
+    patients: {
+      name: "John Smith",
+      condition: "Chronic headaches",
+      profile_id: "demo-patient-1"
+    }
+  },
+  {
+    id: "demo-scan-2",
+    radiologist_id: "demo-radiologist-4",
+    patient_id: "demo-patient-2",
+    scan_type: "Spine MRI",
+    scan_date: "2024-05-20",
+    image_url: "https://via.placeholder.com/800x600/1e293b/64748b?text=Spine+MRI+Scan",
+    ai_processed: false,
+    notes: "Lower back pain assessment",
+    created_at: "2024-05-20T14:30:00Z",
+    updated_at: "2024-05-20T14:30:00Z",
+    patients: {
+      name: "Sarah Davis",
+      condition: "Lower back pain",
+      profile_id: "demo-patient-2"
+    }
+  },
+  {
+    id: "demo-scan-3",
+    radiologist_id: "demo-radiologist-4",
+    patient_id: "demo-patient-3",
+    scan_type: "Knee MRI",
+    scan_date: "2024-05-25",
+    image_url: "https://via.placeholder.com/800x600/1e293b/64748b?text=Knee+MRI+Scan",
+    ai_processed: true,
+    notes: "Sports injury evaluation",
+    created_at: "2024-05-25T09:15:00Z",
+    updated_at: "2024-05-25T09:15:00Z",
+    patients: {
+      name: "Mike Johnson",
+      condition: "Sports injury",
+      profile_id: "demo-patient-3"
+    }
+  }
+];
+
+// Demo AI analysis results
+const demoAnalysisResults: Record<string, AIAnalysisResult> = {
+  "demo-scan-1": {
+    assessment: "High quality brain MRI scan with excellent contrast and resolution. All major anatomical structures are clearly visualized.",
+    abnormalities: "No significant abnormalities detected. Normal brain parenchyma, ventricular system, and vascular structures.",
+    diagnosis: "Normal brain MRI study",
+    recommendations: "No immediate follow-up required. Consider routine screening in 1-2 years if symptoms persist.",
+    confidence_score: 0.92
+  },
+  "demo-scan-3": {
+    assessment: "Detailed knee MRI showing clear visualization of cartilage, ligaments, and bone structures.",
+    abnormalities: "Mild signal changes in the anterior cruciate ligament consistent with partial tear. Small joint effusion present.",
+    diagnosis: "Partial ACL tear with associated joint effusion",
+    recommendations: "Recommend orthopedic consultation for conservative vs. surgical management. Physical therapy may be beneficial.",
+    confidence_score: 0.85
+  }
+};
+
 export default function MriScansPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -55,10 +128,19 @@ export default function MriScansPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
 
+  // Check if user is demo radiologist
+  const isDemoUser = user?.id === "demo-radiologist-4";
+
   // Fetch MRI scans
   const { data: scans, isLoading, refetch } = useQuery({
-    queryKey: ["mriScans"],
+    queryKey: ["mriScans", user?.id],
     queryFn: async () => {
+      // Return demo data for demo user
+      if (isDemoUser) {
+        return demoScans;
+      }
+
+      // Fetch real data from Supabase
       const { data, error } = await supabase
         .from("mri_scans")
         .select("*, patients(name, condition, profile_id)")
@@ -67,12 +149,32 @@ export default function MriScansPage() {
       if (error) throw error;
       return data as MriScanWithPatient[];
     },
+    enabled: !!user
   });
 
   // AI analysis mutation
   const analyzeMutation = useMutation({
     mutationFn: async (scanId: string) => {
       setIsAnalyzing(true);
+      
+      // For demo users, simulate analysis
+      if (isDemoUser) {
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Return mock analysis
+        return {
+          analysis: {
+            assessment: "AI analysis completed successfully. High quality scan with good contrast resolution.",
+            abnormalities: "Minor degenerative changes consistent with normal aging process.",
+            diagnosis: "No significant pathology detected",
+            recommendations: "Routine follow-up in 6-12 months if symptoms persist.",
+            confidence_score: 0.78
+          }
+        };
+      }
+
+      // Real Supabase function call
       const response = await supabase.functions.invoke('analyze-mri-scan', {
         body: { scanId }
       });
@@ -86,6 +188,15 @@ export default function MriScansPage() {
     onSuccess: (data) => {
       setAnalysisResult(data.analysis);
       setViewMode("analysis");
+      
+      // Update demo data if needed
+      if (isDemoUser && selectedScan) {
+        const scanIndex = demoScans.findIndex(s => s.id === selectedScan.id);
+        if (scanIndex !== -1) {
+          demoScans[scanIndex].ai_processed = true;
+        }
+      }
+      
       refetch();
       toast({
         title: "Analysis Complete",
@@ -107,6 +218,18 @@ export default function MriScansPage() {
   // Handle analyze scan
   const handleAnalyzeScan = (scan: MriScanWithPatient) => {
     setSelectedScan(scan);
+    
+    // For demo users, check if we have existing analysis
+    if (isDemoUser && demoAnalysisResults[scan.id]) {
+      setAnalysisResult(demoAnalysisResults[scan.id]);
+      setViewMode("analysis");
+      toast({
+        title: "Analysis Available",
+        description: "This scan has already been analyzed. Viewing existing analysis.",
+      });
+      return;
+    }
+    
     if (scan.ai_processed) {
       // If already processed, show message that analysis exists
       toast({
@@ -124,6 +247,13 @@ export default function MriScansPage() {
   const handleViewScan = (scan: MriScanWithPatient) => {
     setSelectedScan(scan);
     setViewMode("image");
+    
+    // Load existing analysis if available
+    if (isDemoUser && demoAnalysisResults[scan.id]) {
+      setAnalysisResult(demoAnalysisResults[scan.id]);
+    } else {
+      setAnalysisResult(null);
+    }
   };
 
   // Get confidence level
@@ -160,7 +290,12 @@ export default function MriScansPage() {
     <PageTransition>
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">MRI Scans Management</h1>
+          <div>
+            <h1 className="text-3xl font-bold">MRI Scans Management</h1>
+            {isDemoUser && (
+              <p className="text-sm text-muted-foreground mt-1">Demo Mode - Sample data displayed</p>
+            )}
+          </div>
           <Button 
             className="flex items-center gap-2"
             onClick={() => setShowUploadDialog(true)}
@@ -259,6 +394,7 @@ export default function MriScansPage() {
               </DialogTitle>
               <DialogDescription>
                 Scan Date: {selectedScan?.scan_date && format(new Date(selectedScan.scan_date), "MMMM d, yyyy")}
+                {isDemoUser && " (Demo Data)"}
               </DialogDescription>
             </DialogHeader>
 
@@ -293,7 +429,7 @@ export default function MriScansPage() {
                       <Brain className="h-12 w-12 animate-pulse text-primary" />
                       <p className="text-lg font-medium">Analyzing MRI Scan...</p>
                       <p className="text-sm text-muted-foreground">
-                        Please wait while AI processes the image
+                        {isDemoUser ? "Simulating AI analysis..." : "Please wait while AI processes the image"}
                       </p>
                     </div>
                   </div>

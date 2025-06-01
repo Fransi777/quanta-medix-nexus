@@ -1,3 +1,4 @@
+
 import { createContext, useState, useEffect, ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -30,6 +31,16 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Demo user accounts
+const demoUsers = [
+  { id: "demo-admin-1", email: "admin@quantum.med", password: "admin123", role: "admin", name: "Admin User", avatar: "" },
+  { id: "demo-doctor-2", email: "doctor@quantum.med", password: "doctor123", role: "doctor", name: "Dr. Sarah Johnson", avatar: "" },
+  { id: "demo-specialist-3", email: "specialist@quantum.med", password: "specialist123", role: "specialist", name: "Dr. Robert Chen", avatar: "" },
+  { id: "demo-radiologist-4", email: "radiologist@quantum.med", password: "radiologist123", role: "radiologist", name: "Dr. Emily Wong", avatar: "" },
+  { id: "demo-receptionist-5", email: "receptionist@quantum.med", password: "receptionist123", role: "receptionist", name: "Jessica Miller", avatar: "" },
+  { id: "demo-patient-6", email: "patient@quantum.med", password: "patient123", role: "patient", name: "Michael Brown", avatar: "" }
+];
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,7 +50,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // Get session from Supabase
+        // First check for demo user in localStorage
+        const savedUser = localStorage.getItem("quantum_medical_user");
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(parsedUser);
+          setIsLoading(false);
+          return;
+        }
+
+        // Then check Supabase session
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
@@ -50,9 +70,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             .eq('id', session.user.id)
             .single();
           
-          if (error) throw error;
-          
-          if (profile) {
+          if (!error && profile) {
             setUser({
               id: profile.id,
               email: profile.email,
@@ -64,14 +82,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       } catch (error) {
         console.error("Error checking session:", error);
-        
-        // Fall back to demo user if in development
-        if (import.meta.env.DEV) {
-          const savedUser = localStorage.getItem("quantum_medical_user");
-          if (savedUser) {
-            setUser(JSON.parse(savedUser));
-          }
-        }
       } finally {
         setIsLoading(false);
       }
@@ -79,7 +89,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     checkSession();
     
-    // Set up auth change subscription
+    // Set up auth change subscription for real Supabase users
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setIsLoading(true);
@@ -102,7 +112,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             });
           }
         } else if (event === 'SIGNED_OUT') {
-          setUser(null);
+          // Only clear user if it's not a demo user
+          const savedUser = localStorage.getItem("quantum_medical_user");
+          if (!savedUser) {
+            setUser(null);
+          }
         }
         
         setIsLoading(false);
@@ -118,7 +132,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setIsLoading(true);
       
-      // Try to authenticate with Supabase
+      // First check if it's a demo user
+      const demoUser = demoUsers.find(u => u.email === email && u.password === password);
+      
+      if (demoUser) {
+        const { password: _, ...userData } = demoUser;
+        localStorage.setItem("quantum_medical_user", JSON.stringify(userData));
+        setUser(userData as User);
+        toast({
+          title: "Demo Login Successful",
+          description: `Welcome back, ${userData.name}! (Demo Mode)`,
+        });
+        return;
+      }
+
+      // If not a demo user, try Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -128,7 +156,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         throw error;
       }
 
-      // If this is the first time we're seeing this user, let's create a profile
       if (data.user) {
         toast({
           title: "Login Successful",
@@ -137,36 +164,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      
-      // Try demo login in development
-      if (import.meta.env.DEV) {
-        try {
-          // Demo user accounts - Updated with all roles
-          const demoUsers = [
-            { id: "1", email: "admin@quantum.med", password: "admin123", role: "admin", name: "Admin User", avatar: "" },
-            { id: "2", email: "doctor@quantum.med", password: "doctor123", role: "doctor", name: "Dr. Sarah Johnson", avatar: "" },
-            { id: "3", email: "specialist@quantum.med", password: "specialist123", role: "specialist", name: "Dr. Robert Chen", avatar: "" },
-            { id: "4", email: "radiologist@quantum.med", password: "radiologist123", role: "radiologist", name: "Dr. Emily Wong", avatar: "" },
-            { id: "5", email: "receptionist@quantum.med", password: "receptionist123", role: "receptionist", name: "Jessica Miller", avatar: "" },
-            { id: "6", email: "patient@quantum.med", password: "patient123", role: "patient", name: "Michael Brown", avatar: "" }
-          ];
-          
-          const user = demoUsers.find(u => u.email === email && u.password === password);
-          
-          if (user) {
-            const { password, ...userData } = user;
-            localStorage.setItem("quantum_medical_user", JSON.stringify(userData));
-            setUser(userData as User);
-            toast({
-              title: "Demo Login Successful",
-              description: `Welcome back, ${userData.name}! (Demo Mode)`,
-            });
-            return;
-          }
-        } catch (demoError) {
-          console.error("Demo login error:", demoError);
-        }
-      }
       
       toast({
         variant: "destructive",
@@ -206,7 +203,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error: any) {
       console.error("Registration error:", error);
       
-      // Use mock registration in development
+      // Use mock registration in development as fallback
       if (import.meta.env.DEV) {
         try {
           // Create a new user
@@ -245,11 +242,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(true);
     
     try {
-      // Real logout from Supabase
+      // Clear demo user from localStorage
+      localStorage.removeItem("quantum_medical_user");
+      
+      // Also logout from Supabase if there's a session
       await supabase.auth.signOut();
       
-      // Also clean up local storage for demo mode
-      localStorage.removeItem("quantum_medical_user");
       setUser(null);
       
       toast({
@@ -260,7 +258,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("Logout error:", error);
       
       // Ensure we clean up local state even if Supabase logout fails
-      localStorage.removeItem("quantum_medical_user");
       setUser(null);
     } finally {
       setIsLoading(false);
