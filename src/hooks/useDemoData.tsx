@@ -22,11 +22,15 @@ export default function useDemoData() {
           .order("created_at", { ascending: false });
         
         if (error) throw error;
-        return data || [];
+        // Cast the status to the correct type
+        return (data || []).map(patient => ({
+          ...patient,
+          status: patient.status as Patient['status']
+        }));
       }
       
-      // For demo users, return demo data
-      return DEMO_PATIENTS;
+      // For demo users, return demo data with proper typing
+      return DEMO_PATIENTS as Patient[];
     },
     enabled: !!user,
   });
@@ -67,11 +71,15 @@ export default function useDemoData() {
           .order("appointment_date", { ascending: true });
         
         if (error) throw error;
-        return data || [];
+        // Cast the status to the correct type
+        return (data || []).map(appointment => ({
+          ...appointment,
+          status: appointment.status as Appointment['status']
+        }));
       }
       
-      // For demo users, return demo appointments with all required fields
-      return [
+      // For demo users, return demo appointments with proper typing
+      const demoAppointments: Appointment[] = [
         {
           id: 'demo-appointment-1',
           patient_id: 'demo-patient-1',
@@ -99,6 +107,8 @@ export default function useDemoData() {
           updated_at: '2024-06-01T10:00:00Z'
         }
       ];
+      
+      return demoAppointments;
     },
     enabled: !!user,
   });

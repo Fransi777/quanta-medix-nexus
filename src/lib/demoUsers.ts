@@ -35,7 +35,7 @@ export const DEMO_USERS = {
   }
 };
 
-// Demo patient data
+// Demo patient data with proper typing
 export const DEMO_PATIENTS: Patient[] = [
   {
     id: 'demo-patient-1',
@@ -49,7 +49,7 @@ export const DEMO_PATIENTS: Patient[] = [
     medical_history: 'History of migraines, hypertension managed with medication',
     assigned_doctor_id: 'demo-doctor-1',
     condition: 'Chronic severe headaches with neurological symptoms',
-    status: 'Scheduled',
+    status: 'Scheduled' as const,
     appointment_date: '2024-06-03',
     needs_scan: true,
     created_at: '2024-06-01T10:00:00Z',
@@ -67,7 +67,7 @@ export const DEMO_PATIENTS: Patient[] = [
     medical_history: 'Previous lumbar disc herniation L4-L5, physical therapy 2019',
     assigned_doctor_id: 'demo-doctor-1',
     condition: 'Chronic lower back pain with radiculopathy',
-    status: 'In Progress',
+    status: 'In Progress' as const,
     appointment_date: '2024-06-02',
     needs_scan: true,
     created_at: '2024-06-01T10:00:00Z',
@@ -85,7 +85,7 @@ export const DEMO_PATIENTS: Patient[] = [
     medical_history: 'Former collegiate athlete, multiple sports injuries, ACL repair 2018',
     assigned_doctor_id: 'demo-doctor-1',
     condition: 'Sports-related knee injury with suspected meniscal tear',
-    status: 'Completed',
+    status: 'Completed' as const,
     appointment_date: '2024-05-28',
     needs_scan: true,
     created_at: '2024-05-28T10:00:00Z',
