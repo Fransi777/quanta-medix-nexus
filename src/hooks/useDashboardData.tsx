@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import useDemoData from "./useDemoData";
 import useAuth from "./useAuth";
+import { Patient, Appointment } from "@/types/database";
 
 export default function useDashboardData() {
   const { user } = useAuth();
@@ -11,7 +12,7 @@ export default function useDashboardData() {
   // Recent patients query
   const { data: recentPatients = [], isLoading: patientsLoading } = useQuery({
     queryKey: ["recent-patients"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Patient[]> => {
       if (isDemoUser) {
         // Return demo data for demo users
         return demoPatients.slice(0, 5);
@@ -25,7 +26,11 @@ export default function useDashboardData() {
         .limit(5);
 
       if (error) throw error;
-      return data || [];
+      // Cast the status to the correct type
+      return (data || []).map(patient => ({
+        ...patient,
+        status: patient.status as Patient['status']
+      }));
     },
     enabled: !!user,
   });
@@ -33,7 +38,7 @@ export default function useDashboardData() {
   // Upcoming appointments query
   const { data: upcomingAppointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: ["upcoming-appointments"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Appointment[]> => {
       if (isDemoUser) {
         // Return demo data for demo users
         return demoAppointments.slice(0, 5);
@@ -48,7 +53,11 @@ export default function useDashboardData() {
         .limit(5);
 
       if (error) throw error;
-      return data || [];
+      // Cast the status to the correct type
+      return (data || []).map(appointment => ({
+        ...appointment,
+        status: appointment.status as Appointment['status']
+      }));
     },
     enabled: !!user,
   });
