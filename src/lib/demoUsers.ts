@@ -1,4 +1,6 @@
 
+import { Patient, MriScan } from "@/types/database";
+
 // Demo user configuration
 export const DEMO_USERS = {
   radiologist: {
@@ -34,9 +36,10 @@ export const DEMO_USERS = {
 };
 
 // Demo patient data
-export const DEMO_PATIENTS = [
+export const DEMO_PATIENTS: Patient[] = [
   {
     id: 'demo-patient-1',
+    profile_id: null,
     name: 'John Michael Smith',
     date_of_birth: '1975-03-15',
     gender: 'Male',
@@ -44,17 +47,17 @@ export const DEMO_PATIENTS = [
     email: 'john.smith@email.com',
     address: '123 Oak Street, Boston, MA 02115',
     medical_history: 'History of migraines, hypertension managed with medication',
+    assigned_doctor_id: 'demo-doctor-1',
     condition: 'Chronic severe headaches with neurological symptoms',
     status: 'Scheduled',
     appointment_date: '2024-06-03',
     needs_scan: true,
-    emergency_contact: 'Sarah Smith (Wife) +1-555-0124',
-    insurance_id: 'INS-789456123',
-    blood_type: 'O+',
-    allergies: 'Penicillin, Shellfish'
+    created_at: '2024-06-01T10:00:00Z',
+    updated_at: '2024-06-01T10:00:00Z'
   },
   {
-    id: 'demo-patient-2', 
+    id: 'demo-patient-2',
+    profile_id: null,
     name: 'Sarah Elizabeth Davis',
     date_of_birth: '1982-07-22',
     gender: 'Female',
@@ -62,17 +65,17 @@ export const DEMO_PATIENTS = [
     email: 'sarah.davis@email.com',
     address: '456 Pine Avenue, Cambridge, MA 02139',
     medical_history: 'Previous lumbar disc herniation L4-L5, physical therapy 2019',
+    assigned_doctor_id: 'demo-doctor-1',
     condition: 'Chronic lower back pain with radiculopathy',
     status: 'In Progress',
     appointment_date: '2024-06-02',
     needs_scan: true,
-    emergency_contact: 'Michael Davis (Husband) +1-555-0235',
-    insurance_id: 'INS-456789123',
-    blood_type: 'A-',
-    allergies: 'None known'
+    created_at: '2024-06-01T10:00:00Z',
+    updated_at: '2024-06-01T10:00:00Z'
   },
   {
     id: 'demo-patient-3',
+    profile_id: null,
     name: 'Michael Robert Johnson',
     date_of_birth: '1990-11-08',
     gender: 'Male',
@@ -80,19 +83,18 @@ export const DEMO_PATIENTS = [
     email: 'mike.johnson@email.com',
     address: '789 Elm Drive, Somerville, MA 02144',
     medical_history: 'Former collegiate athlete, multiple sports injuries, ACL repair 2018',
+    assigned_doctor_id: 'demo-doctor-1',
     condition: 'Sports-related knee injury with suspected meniscal tear',
     status: 'Completed',
     appointment_date: '2024-05-28',
     needs_scan: true,
-    emergency_contact: 'Jennifer Johnson (Wife) +1-555-0346',
-    insurance_id: 'INS-123456789',
-    blood_type: 'B+',
-    allergies: 'Latex'
+    created_at: '2024-05-28T10:00:00Z',
+    updated_at: '2024-05-28T10:00:00Z'
   }
 ];
 
 // Demo MRI scans
-export const DEMO_SCANS = [
+export const DEMO_SCANS: MriScan[] = [
   {
     id: 'demo-scan-1',
     patient_id: 'demo-patient-1',
@@ -103,7 +105,9 @@ export const DEMO_SCANS = [
     notes: 'Routine brain MRI for chronic headache evaluation. Patient reports worsening symptoms over 6 months.',
     ai_processed: true,
     priority: 'urgent',
-    status: 'analyzed'
+    status: 'analyzed',
+    created_at: '2024-06-01T10:00:00Z',
+    updated_at: '2024-06-01T10:00:00Z'
   },
   {
     id: 'demo-scan-2',
@@ -115,7 +119,9 @@ export const DEMO_SCANS = [
     notes: 'MRI lumbar spine without contrast for chronic lower back pain and radicular symptoms.',
     ai_processed: true,
     priority: 'routine',
-    status: 'analyzed'
+    status: 'analyzed',
+    created_at: '2024-05-30T10:00:00Z',
+    updated_at: '2024-05-30T10:00:00Z'
   },
   {
     id: 'demo-scan-3',
@@ -127,6 +133,8 @@ export const DEMO_SCANS = [
     notes: 'MRI right knee without contrast for suspected meniscal tear and ligament injury assessment.',
     ai_processed: true,
     priority: 'routine',
-    status: 'analyzed'
+    status: 'analyzed',
+    created_at: '2024-05-28T10:00:00Z',
+    updated_at: '2024-05-28T10:00:00Z'
   }
 ];
