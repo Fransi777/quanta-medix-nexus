@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
   Dialog,
@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload } from "lucide-react";
 import useAuth from "@/hooks/useAuth";
+import { DEMO_USERS } from "@/lib/demoUsers";
 
 interface UploadScanDialogProps {
   open: boolean;
@@ -34,15 +35,20 @@ interface UploadScanDialogProps {
 export default function UploadScanDialog({ open, onOpenChange, onSuccess }: UploadScanDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     scan_type: "",
     scan_date: "",
     notes: "",
+    patient_id: "",
   });
 
   // Check if user is demo radiologist
-  const isDemoUser = user?.id === "demo-radiologist-4";
+  const isDemoUser = user && Object.values(DEMO_USERS).some(demoUser => demoUser.id === user.id);
+
+  console.log("UploadScanDialog: user =", user);
+  console.log("UploadScanDialog: isDemoUser =", isDemoUser);
 
   // Upload mutation
   const uploadMutation = useMutation({
@@ -62,12 +68,14 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
         const mockScan = {
           id: `demo-scan-${Date.now()}`,
           radiologist_id: user.id,
-          patient_id: "demo-patient-new",
+          patient_id: formData.patient_id || "demo-patient-new",
           scan_type: formData.scan_type,
           scan_date: formData.scan_date,
           notes: formData.notes,
           image_url: `https://via.placeholder.com/800x600/1e293b/64748b?text=${encodeURIComponent(formData.scan_type)}+Demo+Scan`,
           ai_processed: false,
+          priority: 'routine',
+          status: 'pending',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -105,11 +113,14 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
         .from("mri_scans")
         .insert({
           radiologist_id: profile.id, // Use the profile UUID instead of user.id
+          patient_id: formData.patient_id || null,
           scan_type: formData.scan_type,
           scan_date: formData.scan_date,
           notes: formData.notes,
           image_url: imageUrl,
           ai_processed: false,
+          priority: 'routine',
+          status: 'pending',
         })
         .select()
         .single();
@@ -123,6 +134,10 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
       return data;
     },
     onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ["demo-scans"] });
+      queryClient.invalidateQueries({ queryKey: ["mri_scans"] });
+      
       onSuccess();
       resetForm();
       toast({
@@ -148,6 +163,7 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
       scan_type: "",
       scan_date: "",
       notes: "",
+      patient_id: "",
     });
   };
 
@@ -185,6 +201,16 @@ export default function UploadScanDialog({ open, onOpenChange, onSuccess }: Uplo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="patient_id">Patient ID (Optional)</Label>
+            <Input
+              id="patient_id"
+              value={formData.patient_id}
+              onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
+              placeholder="Leave empty for new patient"
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="scan_type">Scan Type *</Label>
             <Select
