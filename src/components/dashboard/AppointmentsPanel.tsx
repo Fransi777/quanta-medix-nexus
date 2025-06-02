@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Calendar, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Appointment } from "@/hooks/useDashboardData";
+import { Appointment } from "@/types/database";
 
 interface AppointmentsPanelProps {
   upcomingAppointments: Appointment[];
@@ -30,15 +30,15 @@ const AppointmentsPanel: React.FC<AppointmentsPanelProps> = ({ upcomingAppointme
               className="flex items-center gap-4 p-4 rounded-lg bg-muted/20 border border-white/5 group hover:border-quantum-vibrant-blue/20 transition-all duration-300"
             >
               <div className="w-12 h-12 flex flex-col items-center justify-center bg-quantum-vibrant-blue/10 rounded-lg border border-quantum-vibrant-blue/20 text-quantum-vibrant-blue">
-                <span className="text-xs font-semibold">{appointment.date.split(' ')[0]}</span>
-                <span className="text-lg font-bold">{appointment.date.split(' ')[1].replace(',', '')}</span>
+                <span className="text-xs font-semibold">{new Date(appointment.appointment_date).getDate()}</span>
+                <span className="text-lg font-bold">{new Date(appointment.appointment_date).toLocaleDateString('en', { month: 'short' })}</span>
               </div>
               <div className="flex-1">
-                <h4 className="font-medium text-white group-hover:text-quantum-vibrant-blue transition-colors">{appointment.name}</h4>
+                <h4 className="font-medium text-white group-hover:text-quantum-vibrant-blue transition-colors">{appointment.patient_name}</h4>
                 <p className="text-sm text-quantum-text-secondary">{appointment.type}</p>
               </div>
               <div className="text-sm text-quantum-text-paragraph">
-                {appointment.time}
+                {appointment.appointment_time}
               </div>
               <Button 
                 variant="ghost" 

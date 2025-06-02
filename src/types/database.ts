@@ -1,4 +1,3 @@
-
 export interface Profile {
   id: string;
   email: string;
@@ -51,6 +50,8 @@ export interface MriScan {
   scan_type: string;
   notes: string;
   ai_processed: boolean;
+  priority?: "urgent" | "high" | "routine";
+  status?: "analyzed" | "pending" | "processing";
   created_at: string;
   updated_at: string;
 }

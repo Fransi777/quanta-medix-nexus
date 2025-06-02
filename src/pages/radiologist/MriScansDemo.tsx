@@ -20,7 +20,7 @@ export default function MriScansDemo() {
   console.log("MriScansDemo: scans =", scans);
   console.log("MriScansDemo: isDemoUser =", isDemoUser);
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority?: string) => {
     switch (priority) {
       case 'urgent': return 'destructive';
       case 'high': return 'secondary';
@@ -29,7 +29,7 @@ export default function MriScansDemo() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status?: string) => {
     switch (status) {
       case 'analyzed': return 'default';
       case 'pending': return 'secondary';
@@ -175,12 +175,12 @@ export default function MriScansDemo() {
                         <TableCell>{scan.scan_date}</TableCell>
                         <TableCell>
                           <Badge variant={getPriorityColor(scan.priority)}>
-                            {scan.priority}
+                            {scan.priority || 'routine'}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant={getStatusColor(scan.status)}>
-                            {scan.status}
+                            {scan.status || 'pending'}
                           </Badge>
                         </TableCell>
                         <TableCell>

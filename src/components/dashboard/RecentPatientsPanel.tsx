@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { FileText, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Patient } from "@/hooks/useDashboardData";
+import { Patient } from "@/types/database";
 
 interface RecentPatientsPanelProps {
   recentPatients: Patient[];
@@ -53,7 +53,7 @@ const RecentPatientsPanel: React.FC<RecentPatientsPanelProps> = ({ recentPatient
                   }`}>
                     {patient.status}
                   </span>
-                  <span className="text-xs text-quantum-text-secondary mt-1">{patient.date}</span>
+                  <span className="text-xs text-quantum-text-secondary mt-1">{patient.appointment_date}</span>
                 </div>
               </div>
             )) : (
