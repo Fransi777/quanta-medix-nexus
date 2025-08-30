@@ -7,9 +7,9 @@ import useDashboardData from "@/hooks/useDashboardData";
 // Dashboard Components
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatCardsSection from "@/components/dashboard/StatCardsSection";
-import RecentPatientsPanel from "@/components/dashboard/RecentPatientsPanel";
-import AppointmentsPanel from "@/components/dashboard/AppointmentsPanel";
 import LoadingState from "@/components/dashboard/LoadingState";
+import RoleSpecificDashboard from "@/components/dashboard/RoleSpecificDashboard";
+import MedicalSidebar from "@/components/layout/MedicalSidebar";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -33,37 +33,43 @@ export default function Dashboard() {
     return <LoadingState />;
   }
 
-  // Determine if the user role should see the recent patients panel
-  const shouldShowRecentPatients = ['admin', 'doctor', 'specialist', 'radiologist', 'receptionist'].includes(user?.role || '');
+  const getRoleTheme = (role: string) => {
+    switch (role) {
+      case 'patient': return 'theme-patient';
+      case 'radiologist': return 'theme-radiologist theme-dark';
+      case 'doctor': return 'theme-doctor';
+      case 'specialist': return 'theme-specialist';
+      case 'receptionist': return 'theme-receptionist';
+      default: return 'theme-patient';
+    }
+  };
 
   return (
-    <PageTransition>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col gap-6">
-          {/* Header section */}
-          <DashboardHeader 
-            greeting={greeting} 
-            username={user?.name?.split(' ')[0]} 
-          />
+    <div className={`min-h-screen flex w-full ${getRoleTheme(user?.role || 'patient')}`}>
+      <MedicalSidebar />
+      
+      <main className="flex-1 ml-[280px] transition-all duration-300">
+        <PageTransition>
+          <div className="container mx-auto px-6 py-8">
+            <div className="flex flex-col gap-8">
+              {/* Header section */}
+              <DashboardHeader 
+                greeting={greeting} 
+                username={user?.name?.split(' ')[0]} 
+              />
 
-          {/* Stat cards */}
-          <StatCardsSection user={user} />
+              {/* Stat cards */}
+              <StatCardsSection user={user} />
 
-          {/* Role-specific panels */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Recent patients/activity panel - visible to medical staff */}
-            {shouldShowRecentPatients && (
-              <RecentPatientsPanel recentPatients={recentPatients} />
-            )}
-
-            {/* Appointments panel - visible to all */}
-            <AppointmentsPanel 
-              upcomingAppointments={upcomingAppointments} 
-              isFullWidth={!shouldShowRecentPatients}
-            />
+              {/* Role-specific dashboard content */}
+              <RoleSpecificDashboard 
+                recentPatients={recentPatients}
+                upcomingAppointments={upcomingAppointments}
+              />
+            </div>
           </div>
-        </div>
-      </div>
-    </PageTransition>
+        </PageTransition>
+      </main>
+    </div>
   );
 }

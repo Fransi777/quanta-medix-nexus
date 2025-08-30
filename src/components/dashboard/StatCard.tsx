@@ -13,33 +13,50 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, index }) => {
   const item = {
-    hidden: { y: 20, opacity: 0 },
-    show: { y: 0, opacity: 1 },
+    hidden: { y: 20, opacity: 0, scale: 0.9 },
+    show: { y: 0, opacity: 1, scale: 1 },
   };
   
   return (
-    <motion.div variants={item}>
-      <Card className="quantum-card overflow-hidden">
+    <motion.div 
+      variants={item}
+      whileHover={{ scale: 1.05, y: -5 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="medical-card overflow-hidden relative group">
         <div 
-          className="absolute inset-0 bg-gradient-to-br opacity-10 rounded-xl" 
+          className="absolute inset-0 opacity-5 rounded-xl transition-opacity duration-300 group-hover:opacity-10"
           style={{ 
-            backgroundImage: `linear-gradient(to bottom right, ${color.split('from-')[1].split(' to-')[0]}, ${color.split('to-')[1]})` 
+            background: `linear-gradient(135deg, ${color.split('from-')[1]?.split(' to-')[0] || '#3AB8A5'}, ${color.split('to-')[1] || '#2D6AE3'})` 
           }} 
         />
-        <CardHeader className="flex flex-row justify-between items-center pb-2">
-          <CardTitle className="text-lg font-medium text-white">{title}</CardTitle>
-          <div 
-            className="w-10 h-10 rounded-full bg-gradient-to-r flex items-center justify-center quantum-glow" 
-            style={{ 
-              backgroundImage: `linear-gradient(to right, ${color.split('from-')[1].split(' to-')[0]}, ${color.split('to-')[1]})` 
-            }}
-          >
+        <CardHeader className="flex flex-row justify-between items-center pb-3 relative z-10">
+          <CardTitle className="text-lg font-semibold text-foreground">{title}</CardTitle>
+          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center medical-icon animate-float">
             {icon}
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold text-white">{value}</p>
+        <CardContent className="relative z-10">
+          <p className="text-3xl font-bold text-foreground mb-2">{value}</p>
+          <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+            <motion.div 
+              className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: '100%' }}
+              transition={{ duration: 1.5, delay: index * 0.2 }}
+            />
+          </div>
         </CardContent>
+        
+        {/* Animated corner accent */}
+        <div className="absolute top-0 right-0 w-20 h-20 opacity-10">
+          <div 
+            className="w-full h-full rounded-bl-full animate-pulse-glow"
+            style={{ 
+              background: `linear-gradient(135deg, ${color.split('from-')[1]?.split(' to-')[0] || '#3AB8A5'}, ${color.split('to-')[1] || '#2D6AE3'})` 
+            }}
+          />
+        </div>
       </Card>
     </motion.div>
   );
