@@ -94,7 +94,14 @@ export default {
         'neon-green': {
           400: '#4caf50',
           500: '#4CAF50', /* Soft neon green */
-        }
+        },
+        // Modern UI Colors
+        "electric-blue": "hsl(var(--electric-blue))",
+        "neon-cyan": "hsl(var(--neon-cyan))",
+        "aurora-pink": "hsl(var(--aurora-pink))",
+        "plasma-purple": "hsl(var(--plasma-purple))",
+        "quantum-green": "hsl(var(--quantum-green))",
+        "cosmic-orange": "hsl(var(--cosmic-orange))"
       },
       borderRadius: {
         lg: 'var(--radius)',
